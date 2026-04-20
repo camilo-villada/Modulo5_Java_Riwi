@@ -5,135 +5,135 @@ public class main {
 
     public static void Main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-        int opcion;
+        int option;
 
         do {
             System.out.println("\n=== CORPORATE TALENT HUB ===");
-            System.out.println("1. Registrar empleado");
-            System.out.println("2. Calcular desempeño");
-            System.out.println("0. Salir");
+            System.out.println("1. Register employee");
+            System.out.println("2. Calculate performance");
+            System.out.println("0. Exit");
 
-            // TASK 1 - Switch legacy Java 8: riesgo de "fall-through" si se olvida el break
-            // Java 17/21: switch expression con -> elimina ese riesgo y es más conciso
+            // TASK 1 - Legacy Java 8 switch: risk of "fall-through" if break is forgotten
+            // Java 17/21: switch expression with -> removes that risk and is more concise
             try {
-                opcion = scanner.nextInt();
+                option = scanner.nextInt();
             } catch (InputMismatchException e) {
-                System.out.println("Error: ingrese un número válido.");
+                System.out.println("Error: enter a valid number.");
                 scanner.next();
-                opcion = -1;
+                option = -1;
             }
 
-            switch (opcion) {
+            switch (option) {
                 case 1:
-                    registrarEmpleado();
+                    registerEmployee();
                     break;
                 case 2:
-                    procesarDesempeno();
+                    processPerformance();
                     break;
                 case 0:
-                    System.out.println("Saliendo...");
+                    System.out.println("Exiting...");
                     break;
                 default:
-                    System.out.println("Opción inválida");
+                    System.out.println("Invalid option");
             }
 
-        } while (opcion != 0);
+        } while (option != 0);
 
         scanner.close();
     }
 
-    // TASK 1 - Switch Expression moderno Java 17/21 con sintaxis ->
-    public static String obtenerCategoriaSalarial(double salario) {
-        return switch ((int) salario / 1000) {
-            case 1, 2 -> "Bajo";
-            case 3, 4 -> "Medio";
-            case 5, 6 -> "Alto";
+    // TASK 1 - Modern Java 17/21 switch expression with -> syntax
+    public static String getSalaryCategory(double salary) {
+        return switch ((int) salary / 1000) {
+            case 1, 2 -> "Low";
+            case 3, 4 -> "Medium";
+            case 5, 6 -> "High";
             default   -> "Premium";
         };
     }
 
-    // TASK 2 - Scanner en do-while + var (Java 11+) + if/else para validar rangos
-    public static void registrarEmpleado() {
+    // TASK 2 - Scanner in do-while + var (Java 11+) + if/else to validate ranges
+    public static void registerEmployee() {
         Scanner scanner = new Scanner(System.in);
 
         try {
-            var nombre = ""; // Java 11+: var infiere String | Java 8: String nombre = "";
-            var edad   = 0;  // Java 11+: var infiere int    | Java 8: int edad = 0;
+            var name = ""; // Java 11+: var infers String | Java 8: String name = "";
+            var age  = 0;  // Java 11+: var infers int    | Java 8: int age = 0;
 
-            System.out.print("Ingrese nombre: ");
-            nombre = scanner.nextLine();
+            System.out.print("Enter name: ");
+            name = scanner.nextLine();
 
             do {
-                System.out.print("Ingrese edad (18-65): ");
-                edad = scanner.nextInt();
+                System.out.print("Enter age (18-65): ");
+                age = scanner.nextInt();
 
-                if (edad < 18 || edad > 65) {
-                    System.out.println("Edad fuera de rango. Debe estar entre 18 y 65.");
+                if (age < 18 || age > 65) {
+                    System.out.println("Age out of range. Must be between 18 and 65.");
                 } else {
-                    System.out.println("Edad registrada: " + edad);
+                    System.out.println("Age recorded: " + age);
                 }
-            } while (edad < 18 || edad > 65);
+            } while (age < 18 || age > 65);
 
-            System.out.print("Ingrese salario: ");
-            var salario = scanner.nextDouble(); // Java 11+: var infiere double | Java 8: double salario = 0;
+            System.out.print("Enter salary: ");
+            var salary = scanner.nextDouble(); // Java 11+: var infers double | Java 8: double salary = 0;
 
-            if (salario <= 0) {
-                System.out.println("El salario debe ser mayor a 0.");
+            if (salary <= 0) {
+                System.out.println("Salary must be greater than 0.");
             } else {
-                System.out.println("Nombre: " + nombre);
-                System.out.println("Categoría salarial: " + obtenerCategoriaSalarial(salario));
+                System.out.println("Name: " + name);
+                System.out.println("Salary category: " + getSalaryCategory(salary));
             }
 
         } catch (InputMismatchException e) {
-            // TASK 4 - Captura de InputMismatchException al leer datos del Scanner
-            System.out.println("Error: tipo de dato incorrecto. Se esperaba un número.");
+            // TASK 4 - Catch InputMismatchException when reading Scanner data
+            System.out.println("Error: incorrect data type. A number was expected.");
         }
 
         scanner.close();
     }
 
-    // TASK 3 - Matriz de desempeño + for anidados + casting + TASK 4 operador ternario
-    public static void procesarDesempeno() {
+    // TASK 3 - Performance matrix + nested for loops + casting + TASK 4 ternary operator
+    public static void processPerformance() {
 
-        // Matriz double[][]: 2 empleados, 3 trimestres cada uno
-        double[][] calificaciones = {
+        // double[][] matrix: 2 employees, 3 quarters each
+        double[][] ratings = {
             {4.5, 3.8, 4.2},
             {3.0, 3.5, 4.0}
         };
 
-        for (int i = 0; i < calificaciones.length; i++) {
-            double suma = 0;
+        for (int i = 0; i < ratings.length; i++) {
+            double sum = 0;
 
-            for (int j = 0; j < calificaciones[i].length; j++) {
-                suma += calificaciones[i][j];
+            for (int j = 0; j < ratings[i].length; j++) {
+                sum += ratings[i][j];
             }
 
-            double promedio = suma / calificaciones[i].length;
+            double average = sum / ratings[i].length;
 
-            // Casting explícito double -> int: se pierde la parte decimal (precisión)
-            // Ejemplo: 4.16 se convierte en 4, no hay redondeo
-            int promedioEntero = (int) promedio;
+            // Explicit casting double -> int: the decimal part is lost (precision)
+            // Example: 4.16 becomes 4, no rounding
+            int averageInt = (int) average;
 
-            System.out.println("\nEmpleado " + (i + 1));
-            System.out.println("Promedio real: " + promedio);
-            System.out.println("Puntaje simplificado: " + promedioEntero);
+            System.out.println("\nEmployee " + (i + 1));
+            System.out.println("Actual average: " + average);
+            System.out.println("Simplified score: " + averageInt);
 
-            // TASK 4 - Operador ternario para estado de promoción
-            String estado = (promedio >= 3.5) ? "Promovido" : "No promovido";
-            System.out.println("Estado: " + estado);
+            // TASK 4 - Ternary operator for promotion status
+            String status = (average >= 3.5) ? "Promoted" : "Not promoted";
+            System.out.println("Status: " + status);
         }
 
         /*
-         * TASK 4 - Análisis LTS: Diagnóstico de errores en excepciones
+         * TASK 4 - LTS analysis: Error diagnostics in exceptions
          * Java 8:
-         *   Los mensajes de excepción eran genéricos y poco descriptivos.
-         *   Ejemplo: NullPointerException sin indicar qué variable era null.
+         *   Exception messages were generic and not very descriptive.
+         *   Example: NullPointerException without indicating which variable was null.
          *
          * Java 17/21:
-         *   Se introdujeron "Helpful NullPointerExceptions" (JEP 358, Java 14+),
-         *   que indican exactamente qué variable o referencia causó el error.
-         *   Ejemplo: "Cannot invoke "String.length()" because "nombre" is null"
-         *   Esto reduce el tiempo de diagnóstico y depuración.
+         *   "Helpful NullPointerExceptions" (JEP 358, Java 14+) were introduced,
+         *   which indicate exactly which variable or reference caused the error.
+         *   Example: "Cannot invoke "String.length()" because "name" is null"
+         *   This reduces diagnostic and debugging time.
          */
     }
 }
