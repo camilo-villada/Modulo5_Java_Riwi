@@ -12,16 +12,18 @@ Desarrollar un sistema de gestión de biblioteca por consola usando Java, JDBC y
 - Principios SOLID aplicados:
   - Separación de responsabilidades (cada clase y método tiene un propósito claro).
   - Uso de interfaces para desacoplar lógica y facilitar cambios/pruebas.
-- Métodos implementados en PrestamoDAO:
-  - registrarPrestamo
-  - obtenerPrestamosPorUsuario
-  - devolverLibro
+- Métodos implementados:
+  - registrar libro
+  - registrar usuario
+  - registrar préstamo
+  - listar libros disponibles
+  - listar usuarios registrados
 
 ## Próximos pasos
-- Implementar DAOs para Libro y Usuario siguiendo el mismo patrón.
-- Crear la capa `service` para la lógica de negocio.
-- Desarrollar la capa `app` para la interfaz de usuario por consola.
-- Agregar pruebas y refinar la documentación.
+- Implementar actualización y eliminación de libros y usuarios.
+- Agregar manejo de excepciones más robusto.
+- devolver libro
+
 
 ## Buenas prácticas y aprendizajes
 - Organización clara del código y carpetas.

@@ -36,7 +36,7 @@ public class PrestamoDAO implements PrestamoDAOInterface {
         List<Prestamo> prestamos = new ArrayList<>();
         String sql = "SELECT idPrestamo, idLibro, idUsuario, fecha FROM prestamos WHERE idUsuario = ?";
 
-        try(Connection conn = DatabaseConnection.getConnection());
+        try(Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, idUsuario);
             try (ResultSet rs = stmt.executeQuery()){
@@ -58,6 +58,19 @@ public class PrestamoDAO implements PrestamoDAOInterface {
     @Override
     public boolean devolverLibro(int idPrestamo) {
 
-        throw new UnsupportedOperationException("Unimplemented method 'devolverLibro'");
+        String sql = "DELETE FROM prestamos WHERE idPrestamo = ?";
+        try(Connection conn = DatabaseConnection.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, idPrestamo);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
+
+  
+
+    
+        
 }
