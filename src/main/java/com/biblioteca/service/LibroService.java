@@ -18,8 +18,8 @@ public class LibroService {
 
     public Libro obtenerLibro(int idLibro) {
         return libroDAO.obtenerLibro(idLibro);
-    }
 
+    }
 
     public java.util.List<Libro> obtenerTodosLosLibros() {
         return libroDAO.obtenerTodosLosLibros();
