@@ -1,17 +1,51 @@
 # HotelNova System
 
-HotelNova System is a Java 17 desktop application for hotel room, guest, user, and reservation management. The project follows a 4-layer architecture with JDBC-based persistence, service-level business rules, and a Swing entry point.
+Java SE 17 application for the internal management of HotelNova rooms, guests, users, and reservations. The system uses `JOptionPane` as its graphical interface, `JDBC + MySQL` for persistence, a layered architecture, and business rules centered on availability, authentication, and traceability.
 
-## Architecture
+## Coder Information
 
-The application is organized into four layers:
+- Name: Camilo Villada
+- Clan: Hamilton
+- Email: Pending
+- Document ID: Pending
 
-1. `model`: Domain entities such as `Room`, `Guest`, `User`, and `Reservation`.
-2. `dao`: Persistence contracts and JDBC implementations responsible for database access.
-3. `service`: Business workflows such as authentication, check-in, and check-out with transaction handling.
-4. `controller` and `App`: Application orchestration and the Swing user interface.
+## Implemented Features
 
-## Project Structure
+- Login with `ADMIN` and `RECEPTIONIST` roles.
+- Passwords stored and verified with `BCrypt`.
+- Room management:
+  - register
+  - edit
+  - activate/deactivate
+  - delete
+  - list and filter by type or status
+- Guest management:
+  - register
+  - edit
+  - activate/deactivate
+  - search by document
+  - list
+- User management:
+  - register
+  - edit
+  - activate/deactivate
+  - delete
+  - list
+- Reservation management:
+  - transactional check-in
+  - transactional check-out
+  - overlap validation
+  - active guest validation
+  - date validation
+  - active reservation validation for check-out
+- CSV exports:
+  - `rooms_export.csv`
+  - `active_reservations.csv`
+  - extra compatibility with `habitaciones_export.csv`
+  - extra compatibility with `reservas_activas.csv`
+- Logs in the console and the `app.log` file.
+
+## Layered Architecture
 
 ```text
 src/main/java/com/hotelnova
@@ -25,9 +59,21 @@ src/main/java/com/hotelnova
 └── util
 ```
 
-## Configuration Guide
+- `model`: domain entities.
+- `dao`: JDBC contracts and implementations.
+- `service`: business rules, validations, and hashing.
+- `controller`: coordination between UI and services.
+- `util`: configuration, exports, and logging.
 
-Application properties are stored in `src/main/resources/config.properties`.
+## Prerequisites
+
+- Java 17 or higher
+- Maven 3.9 or higher
+- MySQL 8 or higher
+
+## Configuration
+
+File: `src/main/resources/config.properties`
 
 ```properties
 db.url=jdbc:mysql://localhost:3306/hotel_nova_db
@@ -36,164 +82,155 @@ db.password=1234
 checkInHour=15
 checkOutHour=12
 vat=0.19
+horaCheckIn=15
+horaCheckOut=12
+iva=0.19
 ```
 
-Configuration keys:
+Primary keys used by the application:
 
-- `db.url`: MySQL JDBC URL for the HotelNova database.
-- `db.user`: Database username.
-- `db.password`: Database password.
-- `checkInHour`: Default check-in hour.
-- `checkOutHour`: Default check-out hour.
-- `vat`: VAT rate used during check-out totals.
+- `db.url`
+- `db.user`
+- `db.password`
+- `checkInHour`
+- `checkOutHour`
+- `vat`
 
-## Database Initialization
+Legacy keys supported for compatibility:
 
-At startup, `DatabaseInitializer.initialize()`:
+- `horaCheckIn`
+- `horaCheckOut`
+- `iva`
 
-- Creates the database if it does not exist.
-- Executes the DDL in `hotel_nova_db_ddl.sql`.
-- Seeds default users when needed:
-  - `admin` / seeded for compatibility with previous versions
-  - `qa_admin` / `QaAdmin123!`
-  - `qa_recep` / `QaRecep123!`
+## Database
 
-Required local prerequisites:
+When the application starts, `DatabaseInitializer.initialize()` runs and performs:
 
-- Java 17
-- Maven 3.9+
-- MySQL 8+
+1. Database creation if it does not exist.
+2. Execution of the `hotel_nova_db_ddl.sql` script.
+3. Creation or update of seed users with known credentials.
 
-## Running the Application
+Test users:
+
+- `admin` / `admin123`
+- `qa_admin` / `qaadmin123`
+- `qa_recep` / `recep123`
+
+## Run
 
 ```bash
 mvn clean compile
 mvn exec:java -Dexec.mainClass=com.hotelnova.App
 ```
 
-## Running Tests
+## Tests
 
 ```bash
 mvn test
 ```
 
-## CSV Exports
+The current suite validates, among other points:
 
-The controller export flow generates:
+- room number uniqueness
+- valid reservation dates
+- active guest requirement
+- non-overlapping reservations
+- check-out only with an active reservation
+- VAT cost calculation
+- CSV export
+- role-based menus
 
-- `rooms_export.csv`
-- `active_reservations.csv`
+## Screenshots
 
-## Mermaid Class Diagram
+Section prepared to attach real screenshots of:
+
+- Login
+- Main menu `ADMIN`
+- Main menu `RECEPTIONIST`
+- Room management
+- Reservation management
+
+## Class Diagram
 
 ```mermaid
 classDiagram
     class App
     class HotelController
     class AuthService
+    class RoomService
+    class GuestService
+    class UserService
     class ReservationService
     class DatabaseConnection
     class DatabaseInitializer
     class CSVExportUtil
+    class LoggingConfig
 
-    class User {
-        +int id
-        +String username
-        +String password
-        +UserRole role
-        +boolean isActive
-    }
+    class Room
+    class Guest
+    class User
+    class Reservation
 
-    class Guest {
-        +int id
-        +String firstName
-        +String lastName
-        +String documentNumber
-        +String email
-        +String phoneNumber
-        +boolean isActive
-    }
-
-    class Room {
-        +int id
-        +String roomNumber
-        +String type
-        +int capacity
-        +BigDecimal pricePerNight
-        +RoomStatus status
-        +boolean isActive
-    }
-
-    class Reservation {
-        +int id
-        +int guestId
-        +int roomId
-        +int userId
-        +LocalDateTime checkInDate
-        +LocalDateTime checkOutDate
-        +BigDecimal totalCost
-        +ReservationStatus status
-    }
-
-    class UserDAO
-    class GuestDAO
     class RoomDAO
+    class GuestDAO
+    class UserDAO
     class ReservationDAO
-    class UserDAOImpl
-    class GuestDAOImpl
+
     class RoomDAOImpl
+    class GuestDAOImpl
+    class UserDAOImpl
     class ReservationDAOImpl
 
     App --> HotelController
     HotelController --> AuthService
+    HotelController --> RoomService
+    HotelController --> GuestService
+    HotelController --> UserService
     HotelController --> ReservationService
-    HotelController --> UserDAOImpl
-    HotelController --> GuestDAOImpl
-    HotelController --> RoomDAOImpl
-    HotelController --> ReservationDAOImpl
+    RoomService --> RoomDAO
+    GuestService --> GuestDAO
+    UserService --> UserDAO
     ReservationService --> ReservationDAO
     ReservationService --> RoomDAO
     ReservationService --> GuestDAO
-    UserDAOImpl ..|> UserDAO
-    GuestDAOImpl ..|> GuestDAO
     RoomDAOImpl ..|> RoomDAO
+    GuestDAOImpl ..|> GuestDAO
+    UserDAOImpl ..|> UserDAO
     ReservationDAOImpl ..|> ReservationDAO
-    UserDAO --> User
-    GuestDAO --> Guest
-    RoomDAO --> Room
-    ReservationDAO --> Reservation
-    DatabaseInitializer --> DatabaseConnection
-    HotelController --> CSVExportUtil
 ```
 
-## Mermaid Use Case Diagram
+## Use Case Diagram
 
 ```mermaid
 flowchart LR
-    Receptionist([Receptionist])
-    Admin([Admin])
+    Admin([ADMIN])
+    Recep([RECEPTIONIST])
 
-    UC1([Log in])
-    UC2([Register guest])
-    UC3([Search guest])
-    UC4([List rooms])
-    UC5([Create room])
-    UC6([Update room price])
-    UC7([Process check-in])
-    UC8([Process check-out])
-    UC9([Export CSV reports])
+    Login([Log in])
+    Rooms([Manage rooms])
+    Guests([Manage guests])
+    Users([Manage users])
+    Reservations([Manage reservations])
+    Exports([Export CSV])
 
-    Receptionist --> UC1
-    Receptionist --> UC2
-    Receptionist --> UC3
-    Receptionist --> UC4
-    Receptionist --> UC7
-    Receptionist --> UC8
-    Receptionist --> UC9
+    Admin --> Login
+    Admin --> Rooms
+    Admin --> Guests
+    Admin --> Users
+    Admin --> Reservations
+    Admin --> Exports
 
-    Admin --> UC1
-    Admin --> UC4
-    Admin --> UC5
-    Admin --> UC6
-    Admin --> UC9
+    Recep --> Login
+    Recep --> Rooms
+    Recep --> Guests
+    Recep --> Reservations
+    Recep --> Exports
 ```
+
+## Logs and Generated Files
+
+- `app.log`: application traces.
+- `rooms_export.csv`: primary room export.
+- `active_reservations.csv`: primary active reservation export.
+- `habitaciones_export.csv`: legacy compatibility file.
+- `reservas_activas.csv`: legacy compatibility file.

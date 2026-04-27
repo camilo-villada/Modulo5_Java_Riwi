@@ -13,6 +13,8 @@ public class CSVExportUtil {
     private static final Logger logger = Logger.getLogger(CSVExportUtil.class.getName());
     public static final String ROOMS_EXPORT_FILE = "rooms_export.csv";
     public static final String ACTIVE_RESERVATIONS_EXPORT_FILE = "active_reservations.csv";
+    public static final String LEGACY_ROOMS_EXPORT_FILE = "legacy_rooms_export.csv";
+    public static final String LEGACY_ACTIVE_RESERVATIONS_EXPORT_FILE = "legacy_active_reservations.csv";
 
     public static void exportRooms(List<Room> rooms) {
         exportRooms(rooms, ROOMS_EXPORT_FILE);

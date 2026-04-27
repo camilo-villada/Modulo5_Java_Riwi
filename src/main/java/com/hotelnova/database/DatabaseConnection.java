@@ -17,6 +17,10 @@ public final class DatabaseConnection {
 		String user = ConfigManager.getProperty("db.user");
 		String password = ConfigManager.getProperty("db.password");
 
+		if (url == null || user == null || password == null) {
+			throw new IllegalStateException("Database configuration is missing in config.properties");
+		}
+
 		return DriverManager.getConnection(url, user, password);
 	}
 }

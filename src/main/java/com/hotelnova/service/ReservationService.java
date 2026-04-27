@@ -44,11 +44,22 @@ public class ReservationService {
         this.connectionProvider = connectionProvider;
     }
 
+    // Retrieves all currently active reservations.
+    public java.util.List<Reservation> getActiveReservations() throws InvalidReservationException {
+        try (Connection conn = connectionProvider.getConnection()) {
+            return reservationDAO.findActiveReservations(conn);
+        } catch (SQLException e) {
+            throw new InvalidReservationException("Error listing active reservations.");
+        }
+    }
+
+    // Processes a check-in transaction, verifying availability and updating room status.
     public void processCheckIn(Reservation reservation) throws Exception {
         Connection conn = null;
         try {
             conn = connectionProvider.getConnection();
             conn.setAutoCommit(false);
+            conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
 
             if (reservation.getCheckInDate() == null || reservation.getCheckOutDate() == null
                     || !reservation.getCheckInDate().isBefore(reservation.getCheckOutDate())) {
@@ -117,6 +128,7 @@ public class ReservationService {
         }
     }
 
+    // Processes a check-out transaction, calculating the total cost including VAT and freeing the room.
     public void processCheckOut(int reservationId) throws Exception {
         Connection conn = null;
         try {
@@ -126,13 +138,13 @@ public class ReservationService {
             Reservation reservation = reservationDAO.findById(reservationId, conn);
             if (reservation == null || reservation.getStatus() != ReservationStatus.ACTIVE) {
                 logger.info("HTTP Trace: PATCH /reservations/" + reservationId + "/check-out - 404 NOT FOUND");
-                throw new IllegalArgumentException("There is no active reservation with that ID.");
+                throw new InvalidReservationException("No active reservation exists with that ID.");
             }
 
             Room room = roomDAO.findById(reservation.getRoomId(), conn);
             if (room == null) {
                 logger.info("HTTP Trace: PATCH /reservations/" + reservationId + "/check-out - 404 NOT FOUND");
-                throw new IllegalArgumentException("Room not found with ID: " + reservation.getRoomId());
+                throw new InvalidReservationException("The room associated with the reservation does not exist.");
             }
 
             long nights = ChronoUnit.DAYS.between(
@@ -144,10 +156,10 @@ public class ReservationService {
             }
 
             BigDecimal subtotal = room.getPricePerNight().multiply(BigDecimal.valueOf(nights));
-            String vatValue = ConfigManager.getProperty("vat");
+            String vatValue = ConfigManager.getProperty("vat", "iva");
             if (vatValue == null || vatValue.isBlank()) {
                 logger.info("HTTP Trace: PATCH /reservations/" + reservationId + "/check-out - 500 INTERNAL SERVER ERROR");
-                throw new IllegalStateException("The VAT configuration is missing.");
+                throw new IllegalStateException("VAT configuration is required.");
             }
 
             BigDecimal vatRate = new BigDecimal(vatValue);
@@ -173,7 +185,7 @@ public class ReservationService {
                     logger.log(Level.SEVERE, "HTTP Trace: PATCH /reservations/" + reservationId + "/check-out - 500 INTERNAL SERVER ERROR", rollbackEx);
                 }
             }
-            if (!(e instanceof IllegalArgumentException)) {
+            if (!(e instanceof InvalidReservationException)) {
                 logger.log(Level.SEVERE, "HTTP Trace: PATCH /reservations/" + reservationId + "/check-out - 500 INTERNAL SERVER ERROR", e);
             }
             throw e;

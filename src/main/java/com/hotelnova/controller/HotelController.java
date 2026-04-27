@@ -1,40 +1,52 @@
 package com.hotelnova.controller;
 
+import com.hotelnova.dao.GuestDAO;
+import com.hotelnova.dao.ReservationDAO;
+import com.hotelnova.dao.RoomDAO;
+import com.hotelnova.dao.UserDAO;
 import com.hotelnova.dao.impl.GuestDAOImpl;
 import com.hotelnova.dao.impl.ReservationDAOImpl;
 import com.hotelnova.dao.impl.RoomDAOImpl;
 import com.hotelnova.dao.impl.UserDAOImpl;
-import com.hotelnova.database.DatabaseConnection;
 import com.hotelnova.exception.AuthenticationException;
-import com.hotelnova.model.*;
+import com.hotelnova.exception.GuestException;
+import com.hotelnova.exception.InvalidReservationException;
+import com.hotelnova.exception.RoomException;
+import com.hotelnova.exception.UserException;
+import com.hotelnova.model.Guest;
+import com.hotelnova.model.Reservation;
+import com.hotelnova.model.Room;
+import com.hotelnova.model.RoomStatus;
+import com.hotelnova.model.User;
 import com.hotelnova.service.AuthService;
+import com.hotelnova.service.GuestService;
 import com.hotelnova.service.ReservationService;
+import com.hotelnova.service.RoomService;
+import com.hotelnova.service.UserService;
 import com.hotelnova.util.CSVExportUtil;
 
-import java.math.BigDecimal;
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class HotelController {
-    private static final Logger logger = Logger.getLogger(HotelController.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(HotelController.class.getName());
 
     private final AuthService authService;
+    private final RoomService roomService;
+    private final GuestService guestService;
+    private final UserService userService;
     private final ReservationService reservationService;
-    private final ReservationDAOImpl reservationDAO;
-    private final RoomDAOImpl roomDAO;
-    private final GuestDAOImpl guestDAO;
-    private final UserDAOImpl userDAO;
 
     public HotelController() {
-        this.userDAO = new UserDAOImpl();
-        this.roomDAO = new RoomDAOImpl();
-        this.guestDAO = new GuestDAOImpl();
-        this.reservationDAO = new ReservationDAOImpl();
+        UserDAO userDAO = new UserDAOImpl();
+        RoomDAO roomDAO = new RoomDAOImpl();
+        GuestDAO guestDAO = new GuestDAOImpl();
+        ReservationDAO reservationDAO = new ReservationDAOImpl();
 
         this.authService = new AuthService(userDAO);
+        this.roomService = new RoomService(roomDAO);
+        this.guestService = new GuestService(guestDAO);
+        this.userService = new UserService(userDAO);
         this.reservationService = new ReservationService(reservationDAO, roomDAO, guestDAO);
     }
 
@@ -42,91 +54,98 @@ public class HotelController {
         return authService.login(username, password);
     }
 
-    public List<Room> getAvailableRooms() {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            return roomDAO.findByStatus(RoomStatus.AVAILABLE, conn);
-        } catch (SQLException e) {
-            throw new RuntimeException("Error listing available rooms", e);
-        }
+    public List<Room> getAllRooms() throws RoomException {
+        return roomService.getAllRooms();
     }
 
-    public List<Room> getAllRooms() {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            return roomDAO.findAll(conn);
-        } catch (SQLException e) {
-            throw new RuntimeException("Error listing rooms", e);
-        }
+    public List<Room> getRoomsByStatus(RoomStatus status) throws RoomException {
+        return roomService.getRoomsByStatus(status);
     }
 
-    public List<Room> getRoomsByStatus(RoomStatus status) {
-        logger.info("HTTP Trace: GET /rooms/filter?status=" + status + " - 200 OK");
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            return roomDAO.findByStatus(status, conn);
-        } catch (SQLException e) {
-            throw new RuntimeException("Error filtering rooms by status", e);
-        }
+    public List<Room> getRoomsByType(String type) throws RoomException {
+        return roomService.getRoomsByType(type);
     }
 
-    public List<Room> getRoomsByType(String type) {
-        logger.info("HTTP Trace: GET /rooms/filter?type=" + type + " - 200 OK");
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            return roomDAO.findByType(type, conn);
-        } catch (SQLException e) {
-            throw new RuntimeException("Error filtering rooms by type", e);
-        }
+    public Room getRoomById(int roomId) throws RoomException {
+        return roomService.findById(roomId);
     }
 
-    public void saveRoom(Room room) throws Exception {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            Room existingRoom = roomDAO.findByNumber(room.getRoomNumber(), conn);
-            if (existingRoom != null) {
-                throw new Exception("A room with number " + room.getRoomNumber() + " already exists.");
-            }
-            roomDAO.save(room, conn);
-            logger.info("HTTP Trace: POST /rooms - 201 CREATED");
-        } catch (SQLException e) {
-            throw new Exception("Error saving room", e);
-        }
+    public void saveRoom(Room room) throws RoomException {
+        roomService.saveRoom(room);
+        LOGGER.info("HTTP Trace: POST /rooms - 201 CREATED");
     }
 
-    public void updateRoomPrice(int id, BigDecimal price) {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            Room room = roomDAO.findById(id, conn);
-            if (room == null) {
-                throw new IllegalArgumentException("Room not found with ID: " + id);
-            }
-
-            room.setPricePerNight(price);
-            roomDAO.update(room, conn);
-            logger.info("HTTP Trace: PATCH /rooms/" + id + " - 200 OK");
-        } catch (SQLException e) {
-            throw new RuntimeException("Error updating room price", e);
-        }
+    public void updateRoom(Room room) throws RoomException {
+        roomService.updateRoom(room);
+        LOGGER.info("HTTP Trace: PATCH /rooms/" + room.getId() + " - 200 OK");
     }
 
-    public void registerGuest(Guest guest) {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            guestDAO.save(guest, conn);
-        } catch (SQLException e) {
-            throw new RuntimeException("Error saving guest", e);
-        }
+    public Room toggleRoomActive(int roomId) throws RoomException {
+        Room room = roomService.toggleRoomActive(roomId);
+        LOGGER.info("HTTP Trace: PATCH /rooms/" + roomId + "/active - 200 OK");
+        return room;
     }
 
-    public Guest findGuestByDocument(String document) {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            return guestDAO.findByDocument(document, conn);
-        } catch (SQLException e) {
-            throw new RuntimeException("Error finding guest", e);
-        }
+    public void deleteRoom(int roomId) throws RoomException {
+        roomService.deleteRoom(roomId);
+        LOGGER.info("HTTP Trace: DELETE /rooms/" + roomId + " - 200 OK");
     }
 
-    public List<Guest> getAllGuests() {
-        logger.info("HTTP Trace: GET /guests - 200 OK");
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            return guestDAO.findAll(conn);
-        } catch (SQLException e) {
-            throw new RuntimeException("Error listing guests", e);
-        }
+    public void registerGuest(Guest guest) throws GuestException {
+        guestService.createGuest(guest);
+        LOGGER.info("HTTP Trace: POST /guests - 201 CREATED");
+    }
+
+    public void updateGuest(Guest guest) throws GuestException {
+        guestService.updateGuest(guest);
+        LOGGER.info("HTTP Trace: PATCH /guests/" + guest.getId() + " - 200 OK");
+    }
+
+    public Guest toggleGuestActive(int guestId) throws GuestException {
+        Guest guest = guestService.toggleGuestActive(guestId);
+        LOGGER.info("HTTP Trace: PATCH /guests/" + guestId + "/active - 200 OK");
+        return guest;
+    }
+
+    public Guest findGuestByDocument(String document) throws GuestException {
+        return guestService.findByDocument(document);
+    }
+
+    public Guest findGuestById(int guestId) throws GuestException {
+        return guestService.findById(guestId);
+    }
+
+    public List<Guest> getAllGuests() throws GuestException {
+        return guestService.getAllGuests();
+    }
+
+    public void registerUser(User user, String plainPassword) throws UserException {
+        userService.createUser(user, plainPassword);
+        LOGGER.info("HTTP Trace: POST /users - 201 CREATED");
+    }
+
+    public void updateUser(User user, String plainPassword) throws UserException {
+        userService.updateUser(user, plainPassword);
+        LOGGER.info("HTTP Trace: PATCH /users/" + user.getId() + " - 200 OK");
+    }
+
+    public User toggleUserActive(int userId) throws UserException {
+        User user = userService.toggleUserActive(userId);
+        LOGGER.info("HTTP Trace: PATCH /users/" + userId + "/active - 200 OK");
+        return user;
+    }
+
+    public void deleteUser(int userId) throws UserException {
+        userService.deleteUser(userId);
+        LOGGER.info("HTTP Trace: DELETE /users/" + userId + " - 200 OK");
+    }
+
+    public User findUserById(int userId) throws UserException {
+        return userService.findById(userId);
+    }
+
+    public List<User> getAllUsers() throws UserException {
+        return userService.getAllUsers();
     }
 
     public void checkIn(Reservation reservation) throws Exception {
@@ -137,17 +156,18 @@ public class HotelController {
         reservationService.processCheckOut(reservationId);
     }
 
-    public void exportReservationsToCSV() {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            List<Room> rooms = roomDAO.findAll(conn);
-            List<Reservation> activeReservations = reservationDAO.findActiveReservations(conn);
+    public List<Reservation> getActiveReservations() throws InvalidReservationException {
+        return reservationService.getActiveReservations();
+    }
 
-            CSVExportUtil.exportRooms(rooms);
-            CSVExportUtil.exportActiveReservations(activeReservations);
-            logger.info("HTTP Trace: GET /exports/csv - 200 OK");
-        } catch (SQLException e) {
-            logger.log(Level.SEVERE, "HTTP Trace: GET /exports/csv - 500 INTERNAL SERVER ERROR", e);
-            throw new RuntimeException("Error exporting CSV files", e);
-        }
+    public void exportDataToCSV() throws RoomException, InvalidReservationException {
+        List<Room> rooms = roomService.getAllRooms();
+        List<Reservation> activeReservations = reservationService.getActiveReservations();
+
+        CSVExportUtil.exportRooms(rooms);
+        CSVExportUtil.exportRooms(rooms, CSVExportUtil.LEGACY_ROOMS_EXPORT_FILE);
+        CSVExportUtil.exportActiveReservations(activeReservations);
+        CSVExportUtil.exportActiveReservations(activeReservations, CSVExportUtil.LEGACY_ACTIVE_RESERVATIONS_EXPORT_FILE);
+        LOGGER.info("HTTP Trace: GET /exports/csv - 200 OK");
     }
 }

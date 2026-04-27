@@ -12,14 +12,17 @@ import java.util.logging.Logger;
 public class DatabaseInitializer {
     private static final Logger logger = Logger.getLogger(DatabaseInitializer.class.getName());
     private static final String ADMIN_SEED_SQL =
-            "INSERT IGNORE INTO users (username, password, role, is_active) " +
-            "VALUES ('admin', '$2a$10$8.UnVuG9HHgffUDAlk8q6Ou5HEMFYvYZpuOTiXcZSczhfS24kuBWW', 'ADMIN', true)";
+            "INSERT INTO users (username, password, role, is_active) " +
+            "VALUES ('admin', '$2a$10$z7B/hVqeNDUXUshLtoP3weUybnvFKgtxSV6xSGnIu07F0WUYzf1Yy', 'ADMIN', true) " +
+            "ON DUPLICATE KEY UPDATE password = VALUES(password), role = VALUES(role), is_active = VALUES(is_active)";
     private static final String QA_ADMIN_SEED_SQL =
-            "INSERT IGNORE INTO users (username, password, role, is_active) " +
-            "VALUES ('qa_admin', '$2a$10$y87H/fwSXcZfow1zLPO3hO2Jv80UE/VepeVTGLhKk3J9rMciNzfR.', 'ADMIN', true)";
+            "INSERT INTO users (username, password, role, is_active) " +
+            "VALUES ('qa_admin', '$2a$10$0YJDFp6k.NTjsrTL05MmxO3eIZ3XkXkuSrEoIayAvVLJcYlrZPOWm', 'ADMIN', true) " +
+            "ON DUPLICATE KEY UPDATE password = VALUES(password), role = VALUES(role), is_active = VALUES(is_active)";
     private static final String QA_RECEPTIONIST_SEED_SQL =
-            "INSERT IGNORE INTO users (username, password, role, is_active) " +
-            "VALUES ('qa_recep', '$2a$10$QFS4mrwAC210bFGSpISVsOtlhkbtQPa1PAF55maAIw2xgrNSPPI4C', 'RECEPTIONIST', true)";
+            "INSERT INTO users (username, password, role, is_active) " +
+            "VALUES ('qa_recep', '$2a$10$O54qP5XXFTEHhwBWJ7O9eegjyIwBMzExzJmUnZBHjo6mP885KDoK6', 'RECEPTIONIST', true) " +
+            "ON DUPLICATE KEY UPDATE password = VALUES(password), role = VALUES(role), is_active = VALUES(is_active)";
 
     public static void initialize() {
         String configuredUrl = ConfigManager.getProperty("db.url");

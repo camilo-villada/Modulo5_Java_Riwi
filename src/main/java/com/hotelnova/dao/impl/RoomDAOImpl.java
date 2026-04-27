@@ -47,7 +47,7 @@ public class RoomDAOImpl implements RoomDAO {
     @Override
     public List<Room> findAll(Connection conn) throws SQLException {
         List<Room> rooms = new ArrayList<>();
-        String sql = "SELECT * FROM rooms WHERE is_active = true";
+        String sql = "SELECT * FROM rooms ORDER BY room_number";
         try (PreparedStatement pstmt = conn.prepareStatement(sql);
              ResultSet rs = pstmt.executeQuery()) {
             while (rs.next()) rooms.add(mapResultSetToRoom(rs));
@@ -59,7 +59,7 @@ public class RoomDAOImpl implements RoomDAO {
     @Override
     public List<Room> findByStatus(RoomStatus status, Connection conn) throws SQLException {
         List<Room> rooms = new ArrayList<>();
-        String sql = "SELECT * FROM rooms WHERE status = ?";
+        String sql = "SELECT * FROM rooms WHERE status = ? ORDER BY room_number";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, status.name());
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -87,6 +87,16 @@ public class RoomDAOImpl implements RoomDAO {
     }
 
     @Override
+    public void delete(int id, Connection conn) throws SQLException {
+        String sql = "DELETE FROM rooms WHERE id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            int rowsDeleted = pstmt.executeUpdate();
+            logger.info("HTTP Trace: DELETE /rooms/" + id + " - " + (rowsDeleted > 0 ? "200 OK" : "404 NOT FOUND"));
+        }
+    }
+
+    @Override
     public Room findById(int id, Connection conn) throws SQLException {
         String sql = "SELECT * FROM rooms WHERE id = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -101,7 +111,7 @@ public class RoomDAOImpl implements RoomDAO {
     @Override
     public List<Room> findByType(String type, Connection conn) throws SQLException {
         List<Room> rooms = new ArrayList<>();
-        String sql = "SELECT * FROM rooms WHERE type = ?";
+        String sql = "SELECT * FROM rooms WHERE type = ? ORDER BY room_number";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, type);

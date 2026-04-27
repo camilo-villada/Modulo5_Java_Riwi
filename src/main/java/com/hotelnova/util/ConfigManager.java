@@ -12,6 +12,7 @@ public class ConfigManager {
     private static final Logger logger = Logger.getLogger(ConfigManager.class.getName());
 
     static {
+        LoggingConfig.configure();
         try (InputStream is = ConfigManager.class.getClassLoader().getResourceAsStream("config.properties")) {
             if (is == null) {
                 logger.log(Level.SEVERE, "Error: config.properties was not found in src/main/resources.");
@@ -27,8 +28,23 @@ public class ConfigManager {
         return properties.getProperty(key);
     }
 
+    public static String getProperty(String... keys) {
+        for (String key : keys) {
+            String value = properties.getProperty(key);
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
     public static double getDoubleProperty(String key) {
         String value = properties.getProperty(key);
+        return value != null ? Double.parseDouble(value) : 0.0;
+    }
+
+    public static double getDoubleProperty(String... keys) {
+        String value = getProperty(keys);
         return value != null ? Double.parseDouble(value) : 0.0;
     }
 }

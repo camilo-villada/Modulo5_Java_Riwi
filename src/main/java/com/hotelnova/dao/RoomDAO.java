@@ -10,8 +10,9 @@ public interface RoomDAO {
     
     void save(Room room, Connection conn) throws SQLException;
     void update(Room room, Connection conn) throws SQLException;
+    void delete(int id, Connection conn) throws SQLException;
     Room findById(int id, Connection conn) throws SQLException;
-    Room findByNumber(String Roomnumber, Connection conn) throws SQLException;
+    Room findByNumber(String roomNumber, Connection conn) throws SQLException;
     List<Room> findAll(Connection conn) throws SQLException;
     List<Room> findByStatus(RoomStatus status, Connection conn) throws SQLException;
     List<Room> findByType(String type, Connection conn) throws SQLException;

@@ -156,4 +156,21 @@ class ReservationServiceTest {
 
         verify(reservationDAO, never()).save(any(), any());
     }
+
+    @Test
+    void shouldRejectCheckOutWithoutActiveReservation() throws Exception {
+        Reservation finishedReservation = new Reservation();
+        finishedReservation.setId(40);
+        finishedReservation.setStatus(ReservationStatus.FINISHED);
+
+        when(reservationDAO.findById(40, conn)).thenReturn(finishedReservation);
+
+        InvalidReservationException ex = assertThrows(
+                InvalidReservationException.class,
+                () -> reservationService.processCheckOut(40)
+        );
+
+        assertTrue(ex.getMessage().contains("No active reservation exists"));
+        verify(roomDAO, never()).findById(any(Integer.class), eq(conn));
+    }
 }
