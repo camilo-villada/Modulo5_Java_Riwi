@@ -14,12 +14,12 @@ public class ConfigManager {
     static {
         try (InputStream is = ConfigManager.class.getClassLoader().getResourceAsStream("config.properties")) {
             if (is == null) {
-                logger.log(Level.SEVERE, "Error: No se encontró config.properties en src/main/resources");
+                logger.log(Level.SEVERE, "Error: config.properties was not found in src/main/resources.");
             } else {
                 properties.load(is);
             }
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "Error cargando las propiedades", e);
+            logger.log(Level.SEVERE, "Error loading application properties.", e);
         }
     }
 

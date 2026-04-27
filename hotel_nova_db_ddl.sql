@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS reservations (
   check_in_date DATETIME NOT NULL,
   check_out_date DATETIME NOT NULL,
   total_cost DECIMAL(10,2) NOT NULL,
-  status ENUM('ACTIVE', 'FINISHED', 'CANCELLED') NOT NULL,
+  status ENUM('ACTIVE', 'FINISHED', 'CANCELED') NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT chk_reservations_dates CHECK (check_out_date > check_in_date),
   CONSTRAINT chk_reservations_total_cost_non_negative CHECK (total_cost >= 0),

@@ -2,68 +2,194 @@ package com.hotelnova.service;
 
 import com.hotelnova.dao.ReservationDAO;
 import com.hotelnova.dao.RoomDAO;
+import com.hotelnova.dao.GuestDAO;
 import com.hotelnova.database.DatabaseConnection;
+import com.hotelnova.exception.InvalidReservationException;
+import com.hotelnova.exception.RoomNotAvailableException;
 import com.hotelnova.model.*;
 import com.hotelnova.util.ConfigManager;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Connection;
-import java.time.Duration;
+import java.sql.SQLException;
+import java.time.temporal.ChronoUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class ReservationService {
+    @FunctionalInterface
+    interface ConnectionProvider {
+        Connection getConnection() throws SQLException;
+    }
+
     private final ReservationDAO reservationDAO;
     private final RoomDAO roomDAO;
+    private final GuestDAO guestDAO;
+    private final ConnectionProvider connectionProvider;
     private static final Logger logger = Logger.getLogger(ReservationService.class.getName());
 
     public ReservationService(ReservationDAO reservationDAO, RoomDAO roomDAO) {
-        this.reservationDAO = reservationDAO;
-        this.roomDAO = roomDAO;
+        this(reservationDAO, roomDAO, null);
     }
 
-    // ... (Aquí iría el processCheckIn que te pasé antes)
+    public ReservationService(ReservationDAO reservationDAO, RoomDAO roomDAO, GuestDAO guestDAO) {
+        this(reservationDAO, roomDAO, guestDAO, DatabaseConnection::getConnection);
+    }
 
-    public void processCheckOut(int reservationId) throws Exception {
-        Connection conn = DatabaseConnection.getConnection();
+    ReservationService(ReservationDAO reservationDAO, RoomDAO roomDAO, GuestDAO guestDAO, ConnectionProvider connectionProvider) {
+        this.reservationDAO = reservationDAO;
+        this.roomDAO = roomDAO;
+        this.guestDAO = guestDAO;
+        this.connectionProvider = connectionProvider;
+    }
+
+    public void processCheckIn(Reservation reservation) throws Exception {
+        Connection conn = null;
         try {
-            conn.setAutoCommit(false); // REQUISITO: Transacción
+            conn = connectionProvider.getConnection();
+            conn.setAutoCommit(false);
 
-            Reservation res = reservationDAO.findById(reservationId);
-            if (res == null || res.getStatus() != ReservationStatus.ACTIVE) {
-                throw new Exception("There is no active reservation with that ID.");
+            if (reservation.getCheckInDate() == null || reservation.getCheckOutDate() == null
+                    || !reservation.getCheckInDate().isBefore(reservation.getCheckOutDate())) {
+                logger.info("HTTP Trace: POST /reservations/check-in - 400 BAD REQUEST");
+                throw new InvalidReservationException("Check-in date must be before check-out date.");
             }
 
-            Room room = roomDAO.findById(res.getRoomId());
-            
-            // 1. Calcular costo (Noches * Precio)
-            long nights = Duration.between(res.getCheckInDate(), res.getCheckOutDate()).toDays();
-            if (nights <= 0) nights = 1; // Mínimo cobrar una noche
+            if (guestDAO != null) {
+                Guest guest = guestDAO.findById(reservation.getGuestId(), conn);
+                if (guest == null || !guest.isActive()) {
+                    logger.info("HTTP Trace: POST /reservations/check-in - 400 BAD REQUEST");
+                    throw new InvalidReservationException("The guest is inactive or does not exist.");
+                }
+            }
 
-            BigDecimal subtotal = room.getPricePerNight().multiply(new BigDecimal(nights));
-            
-            // 2. Aplicar IVA desde config.properties
-            double ivaPercent = ConfigManager.getDoubleProperty("iva");
-            BigDecimal totalWithTax = subtotal.multiply(new BigDecimal(1 + ivaPercent));
+            Room room = roomDAO.findById(reservation.getRoomId(), conn);
+            if (room == null || !room.isActive()) {
+                logger.info("HTTP Trace: POST /reservations/check-in - 404 NOT FOUND");
+                throw new InvalidReservationException("The room does not exist or is inactive.");
+            }
 
-            // 3. Actualizar Reserva
-            res.setTotalCost(totalWithTax);
-            res.setStatus(ReservationStatus.FINISHED);
-            reservationDAO.update(res);
+            boolean isAvailable = reservationDAO.isRoomAvailable(
+                    reservation.getRoomId(),
+                    reservation.getCheckInDate(),
+                    reservation.getCheckOutDate(),
+                    conn
+            );
+            if (!isAvailable) {
+                logger.info("HTTP Trace: POST /reservations/check-in - 409 CONFLICT");
+                throw new RoomNotAvailableException("The room is not available for the selected dates.");
+            }
 
-            // 4. Liberar Habitación
-            room.setStatus(RoomStatus.AVAILABLE);
-            roomDAO.update(room);
+            reservationDAO.save(reservation, conn);
+
+            room.setStatus(RoomStatus.OCCUPIED);
+            roomDAO.update(room, conn);
 
             conn.commit();
-            logger.info("Check-out exitoso. Total: " + totalWithTax);
+            logger.info("HTTP Trace: POST /reservations/check-in - 200 OK");
 
         } catch (Exception e) {
-            conn.rollback();
-            logger.log(Level.SEVERE, "Error in the Check-out. Rollback executed.", e);
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackEx) {
+                    logger.log(Level.SEVERE, "HTTP Trace: POST /reservations/check-in - 500 INTERNAL SERVER ERROR", rollbackEx);
+                }
+            }
+            if (!(e instanceof InvalidReservationException) && !(e instanceof RoomNotAvailableException)) {
+                logger.log(Level.SEVERE, "HTTP Trace: POST /reservations/check-in - 500 INTERNAL SERVER ERROR", e);
+            }
             throw e;
         } finally {
-            conn.setAutoCommit(true);
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                } catch (SQLException e) {
+                    logger.log(Level.WARNING, "HTTP Trace: POST /reservations/check-in - 500 INTERNAL SERVER ERROR", e);
+                }
+                try {
+                    conn.close();
+                } catch (SQLException e) {
+                    logger.log(Level.WARNING, "HTTP Trace: POST /reservations/check-in - 500 INTERNAL SERVER ERROR", e);
+                }
+            }
+        }
+    }
+
+    public void processCheckOut(int reservationId) throws Exception {
+        Connection conn = null;
+        try {
+            conn = connectionProvider.getConnection();
+            conn.setAutoCommit(false);
+
+            Reservation reservation = reservationDAO.findById(reservationId, conn);
+            if (reservation == null || reservation.getStatus() != ReservationStatus.ACTIVE) {
+                logger.info("HTTP Trace: PATCH /reservations/" + reservationId + "/check-out - 404 NOT FOUND");
+                throw new IllegalArgumentException("There is no active reservation with that ID.");
+            }
+
+            Room room = roomDAO.findById(reservation.getRoomId(), conn);
+            if (room == null) {
+                logger.info("HTTP Trace: PATCH /reservations/" + reservationId + "/check-out - 404 NOT FOUND");
+                throw new IllegalArgumentException("Room not found with ID: " + reservation.getRoomId());
+            }
+
+            long nights = ChronoUnit.DAYS.between(
+                    reservation.getCheckInDate().toLocalDate(),
+                    reservation.getCheckOutDate().toLocalDate()
+            );
+            if (nights <= 0) {
+                nights = 1;
+            }
+
+            BigDecimal subtotal = room.getPricePerNight().multiply(BigDecimal.valueOf(nights));
+            String vatValue = ConfigManager.getProperty("vat");
+            if (vatValue == null || vatValue.isBlank()) {
+                logger.info("HTTP Trace: PATCH /reservations/" + reservationId + "/check-out - 500 INTERNAL SERVER ERROR");
+                throw new IllegalStateException("The VAT configuration is missing.");
+            }
+
+            BigDecimal vatRate = new BigDecimal(vatValue);
+            BigDecimal totalWithTax = subtotal
+                    .add(subtotal.multiply(vatRate))
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            reservation.setTotalCost(totalWithTax);
+            reservation.setStatus(ReservationStatus.FINISHED);
+            reservationDAO.update(reservation, conn);
+
+            room.setStatus(RoomStatus.AVAILABLE);
+            roomDAO.update(room, conn);
+
+            conn.commit();
+            logger.info("HTTP Trace: PATCH /reservations/" + reservationId + "/check-out - 200 OK");
+
+        } catch (Exception e) {
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackEx) {
+                    logger.log(Level.SEVERE, "HTTP Trace: PATCH /reservations/" + reservationId + "/check-out - 500 INTERNAL SERVER ERROR", rollbackEx);
+                }
+            }
+            if (!(e instanceof IllegalArgumentException)) {
+                logger.log(Level.SEVERE, "HTTP Trace: PATCH /reservations/" + reservationId + "/check-out - 500 INTERNAL SERVER ERROR", e);
+            }
+            throw e;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                } catch (SQLException e) {
+                    logger.log(Level.WARNING, "HTTP Trace: PATCH /reservations/" + reservationId + "/check-out - 500 INTERNAL SERVER ERROR", e);
+                }
+                try {
+                    conn.close();
+                } catch (SQLException e) {
+                    logger.log(Level.WARNING, "HTTP Trace: PATCH /reservations/" + reservationId + "/check-out - 500 INTERNAL SERVER ERROR", e);
+                }
+            }
         }
     }
 }

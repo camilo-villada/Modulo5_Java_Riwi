@@ -6,4 +6,8 @@ public class HotelNovaException extends Exception {
         super(message);
     }
 
+    public HotelNovaException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
 }
